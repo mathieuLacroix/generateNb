@@ -1,0 +1,298 @@
+#!/usr/bin/env python
+
+import argparse
+import os
+import json
+import copy
+import subprocess
+import re
+from argparse import RawTextHelpFormatter
+
+def loadNotebook(notebook):
+    fichier = open(notebook, "r")
+    s = fichier.read()
+    fichier.close()
+    return json.loads(s)
+
+def saveNotebook(ipynb, notebook):
+    fichier = open(notebook, "w")
+    s = json.dumps(ipynb)
+    fichier.write(s)
+    fichier.close()
+
+
+def cleanNotebook(ipynb, frozenMarkdown = True):
+    """
+    Clean the notebook:
+    - Remove celltoolbar key if exists
+    - Remove output of each code cellule which has not the "keepOutput" tag
+    - Set execution_cout to null for each code cell
+    - Set each markdown cell as frozen if frozenMarkdown is True
+    """
+    # Remove celltoolbar key if exists
+    if "metadata" in ipynb and "celltoolbar" in ipynb["metadata"]:
+        del(ipynb["metadata"]["celltoolbar"])
+
+    cells = ipynb["cells"]
+
+
+    for i in range(len(cells)):
+        metadata = cells[i]["metadata"]
+
+        if cells[i]["cell_type"] == "code" and "outputs" in cells[i] and ("tags" not in metadata or "keepOutput" not in metadata["tags"]): 
+            cells[i]["outputs"] = []
+        
+        if cells[i]["cell_type"] == "code" and "execution_count" in cells[i]:
+            cells[i]["execution_count"] = None
+
+
+        # Froze if markdown cell
+        if frozenMarkdown and cells[i]["cell_type"] == "markdown":
+            # These 3 metadata must be set
+            metadata["editable"] = False
+            metadata["deletable"] = False
+            metadata["run_control"] = {"frozen": True }
+
+
+
+
+def getStudentCodeInvitation():
+    return """############################## 
+#   Saisir votre code ici.   #
+##############################
+
+
+"""
+
+def getStudentMarkdownInvitation():
+    return """**Réponse :** Écrire votre réponse ici.
+
+
+"""
+
+
+def getCorrectionCodeInvitation():
+    return """##################
+#   Correction   #
+##################
+
+
+"""
+
+
+def getCorrectionMarkdownInvitation():
+    return """**CORRECTION :**
+
+
+"""
+
+
+def createStudentVersion(ipynb, output_file):
+
+    ipynb2 = copy.deepcopy(ipynb)
+    cleanNotebook(ipynb2)
+    cells = ipynb2["cells"]
+    
+    i = 0
+    while i < len(cells):
+        metadata = cells[i]["metadata"]
+
+        if "tags" in metadata and "removeFromStudent" in metadata["tags"]:
+            del(cells[i])
+        else:
+            # Si la cellule est une cellule de code contenant une réponse
+            if cells[i]["cell_type"] == "code" and "tags" in metadata and "answer" in metadata["tags"]: 
+                cells[i]["source"] = [getStudentCodeInvitation()]
+                cells[i]["outputs"] = []
+
+            elif cells[i]["cell_type"] == "markdown" and "tags" in metadata and "answer" in metadata["tags"]: 
+                cells[i]["source"] = [getStudentMarkdownInvitation()]
+            
+            i += 1
+
+    saveNotebook(ipynb2, output_file)
+
+
+def createLatexVersion(ipynb, output_file_pdf, output_file_latex):
+
+    ipynb2 = copy.deepcopy(ipynb)
+
+    cells = ipynb2["cells"]
+
+    # Get title    
+    titre = cells[0]["source"][0] 
+    
+    # Ensure it is a title
+    assert (titre[0] == "#"), "La première cellule n'est pas un titre !"
+
+    # Remove character # from titre
+    titre = titre[2:]
+
+    # Remove the cell containing the title
+    del(cells[0])
+
+    # Remove cells which contains tag "answer" or "removeFromLatex"
+    i = 0
+    while i < len(cells):
+        metadata = cells[i]["metadata"]
+
+        # Si la cellule contient une réponse ou doit être supprimée pour la version latex
+        if "tags" in metadata and ("answer" in metadata["tags"] or "removeFromLatex" in metadata["tags"]): 
+            del(cells[i])
+        else:
+            i += 1
+
+    # Build latex from notebook
+    saveNotebook(ipynb2, "remove.ipynb")
+    subprocess.call(["jupyter nbconvert remove.ipynb --to latex"], shell=True)
+    
+    # Read latex file
+    fichier = open("remove.tex", "r")
+    s = fichier.read()
+    fichier.close()
+
+    # Replace title    
+    p = re.compile(r"\\title\{.*\}")
+    s = p.sub(r"\\title{" + titre + r"}\\date{}",s)
+    
+    # Replace subsections by sections
+    p = re.compile(r"\\subsection")
+    s = p.sub(r"\\section",s)
+
+    # Replace subsubsection by paragraphs
+    p = re.compile(r"\\subsubsection")
+    s = p.sub(r"\\paragraph",s)
+
+    # Remove useless latex instructions 
+    p = re.compile(r"\\begin\{tcolorbox\}\[breakable, size=fbox, boxrule=1pt, pad at break\*=1mm,colback=cellbackground, colframe=cellborder\]")
+    s = p.sub("", s)
+
+    p = re.compile(r"\\end\{tcolorbox\}")
+    s = p.sub("", s)
+
+    p = re.compile(r"\\prompt\{In\}\{incolor\}\{( |\d+)\}\{\\hspace\{4pt\}\}")
+    s = p.sub("", s)
+
+    # Write the new latex file
+    fichier = open("remove.tex", "w")
+    fichier.write(s)
+    fichier.close()
+
+    # Si on doit créer le document latex
+    if not output_file_latex is None:
+        subprocess.run(["cp remove.tex " + output_file_latex], shell=True)
+
+    # Si on doit créer le document pdf
+    if not output_file_pdf is None:
+        # compile latex file
+        subprocess.run(["pdflatex remove.tex"], shell=True)
+        subprocess.run(["pdflatex remove.tex"], shell=True)
+        subprocess.run(["mv remove.pdf " + output_file_pdf], shell=True)
+
+    subprocess.run(["rm remove.tex"], shell=True)
+
+
+
+def createCorrectedVersion(ipynb, output_file):
+
+    ipynb2 = copy.deepcopy(ipynb)
+    
+    cells = ipynb2["cells"]
+    
+    cells[0]["source"][0] += " - Correction"
+
+    for i in range(len(cells)):
+        metadata = cells[i]["metadata"]
+
+        # Si la cellule est une cellule de code contenant une réponse
+        if cells[i]["cell_type"] == "code" and "tags" in metadata and "answer" in metadata["tags"]: 
+            cells[i]["source"].insert(0, getCorrectionCodeInvitation())
+
+        elif cells[i]["cell_type"] == "markdown" and "tags" in metadata and "answer" in metadata["tags"]: 
+            cells[i]["source"].insert(0,getCorrectionMarkdownInvitation())
+
+    saveNotebook(ipynb2, output_file)
+
+
+if __name__ == "__main__":
+
+    help_message = """Génère automatiquement (suivant les options) les notebooks (avec ou sans corrections), latex et pdf. 
+
+Ce script utilise les tags de cellule suivants :
+
+- "answer" : indique que la cellule (de code ou de markdown) est une réponse à un exercice. Dans la version générée pour les étudiants, le contenu de cette cellule sera supprimée et remplacé par un message.
+
+- "keepOutput" :  par défaut, tous les outputs sont supprimés. Si c'est important de le garder (c'est une figure générée par exemple), on met ce tag (Si c'est l'output d'une réponse d'un TD ou TP, il sera quand même supprimé dans la version pour les étudiants)
+
+- "removeFromLatex" : pour supprimer certaines cellules dans le document latex (essentiellement pour les cellules contenant les imports inutiles pour le TD par exemple).
+
+- "removeFromStudent" : pour supprimer certaines cellules dans le notebook pour les étudiants (essentiellement pour les corrections contenant une archive et dont la réponse ne peut être écrite directement dans le notebook (création de package par exemple))
+    """
+
+
+
+    # Create a parser
+    parser = argparse.ArgumentParser(description = help_message,  formatter_class=RawTextHelpFormatter)
+
+    # Add a positional argument
+    parser.add_argument("file_origin")
+
+
+    # Add an optional argument for outdir
+    parser.add_argument("-o", "--outdir", help="enter the output directory")
+
+    # Add boolean options
+    parser.add_argument("-c", "--clean", help="clean origin file", action="store_true")
+    parser.add_argument("-s", "--student", help="student version", action="store_true")
+    parser.add_argument("-t", "--teacher", help="corrected version", action="store_true")
+    parser.add_argument("-l", "--latex", help="latex version", action="store_true")
+    parser.add_argument("-p", "--pdf", help="pdf version", action="store_true")
+
+    args = parser.parse_args()
+
+    assert not (args.student and args.clean), "Can't have both student and clean options!"
+    assert (args.student or args.clean or args.teacher or args.latex or args.pdf), "Nothing to do !"
+
+    # Asserts that file_origin exists
+    assert os.path.isfile(args.file_origin), "file_origin not found"
+
+    # Remove the path
+    file_name = args.file_origin.split("/")[-1]
+
+    if not args.outdir is None:
+        assert os.path.isdir(args.outdir)
+        # Set the output dir but removing the last character if it is a /
+        output_dir = args.outdir if args.outdir[-1] != '/' else  args.outdir[0:-1]
+    else:
+        # The ouput_dir is the input directory (obtained by splitting the input_file name with "/", removing the last part (name of the file) and joining the directories with "/")
+        output_dir = "/".join(args.file_origin.split("/")[0:-1])
+
+    # Check whether it is a notebook ending with _origin.ipynb
+    file_name = file_name.split(".")
+    assert (len(file_name) == 2 and file_name[1] == "ipynb"), "file_origin is not a notebook"
+    file_name = file_name[0].split("_")
+    assert (len(file_name) == 2 and file_name[1] == "origin"), "file_origin does not end with _origin"
+
+    # This is the file name (without _orin.ipynb) but with the path
+    file_name = output_dir + "/" + file_name[0]
+
+
+
+    ipynb = loadNotebook(args.file_origin)
+    cleanNotebook(ipynb)
+
+    # If we need to clean the notebook only
+    if args.clean:
+        saveNotebook(ipynb, file_name + ".ipynb")
+    
+    if args.student:
+        createStudentVersion(ipynb, file_name + ".ipynb")
+
+    if args.teacher:
+        createCorrectedVersion(ipynb, file_name + "_corrige.ipynb")
+
+    if args.latex or args.pdf:
+        latex =  file_name + ".tex" if args.latex else None
+        pdf = file_name + ".pdf" if args.pdf else None
+        createLatexVersion(ipynb, pdf, latex)
+    print("Files have been generated")
