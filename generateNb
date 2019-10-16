@@ -270,11 +270,14 @@ Ce script utilise les tags de cellule suivants :
     # Check whether it is a notebook ending with _origin.ipynb
     file_name = file_name.split(".")
     assert (len(file_name) == 2 and file_name[1] == "ipynb"), "file_origin is not a notebook"
-    file_name = file_name[0].split("_")
-    assert (len(file_name) == 2 and file_name[1] == "origin"), "file_origin does not end with _origin"
+    #file_name = file_name[0].split("_")
+    file_name = file_name[0]
+    origin = file_name.split("_")[-1]
+    file_name = "_".join(file_name.split("_")[0:-1])
+    assert (origin == "origin"), "file_origin does not end with _origin"
 
     # This is the file name (without _orin.ipynb) but with the path
-    file_name = output_dir + "/" + file_name[0]
+    file_name = output_dir + "/" + file_name
 
 
 
