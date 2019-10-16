@@ -97,7 +97,10 @@ def createStudentVersion(ipynb, output_file):
     while i < len(cells):
         metadata = cells[i]["metadata"]
 
-        if "tags" in metadata and "removeFromStudent" in metadata["tags"]:
+        # Si la cellule contient le tag removeFromStudent ou 
+        # si la cellule est une réponse et suit une cellule de réponse de même type (code ou markdown)
+        if ("tags" in metadata and "removeFromStudent" in metadata["tags"]) or ("tags" in metadata and "answer" in metadata["tags"] and i > 0 and 
+         "tags" in cells[i-1]["metadata"] and "answer" in cells[i-1]["metadata"]["tags"] and cells[i]["cell_type"] == cells[i-1]["cell_type"]):
             del(cells[i])
         else:
             # Si la cellule est une cellule de code contenant une réponse
