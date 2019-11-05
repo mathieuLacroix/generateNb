@@ -167,8 +167,13 @@ def createLatexVersion(ipynb, output_file_pdf, output_file_latex):
     s = p.sub(r"\\paragraph",s)
 
     # Remove useless latex instructions 
-    p = re.compile(r"\\begin\{tcolorbox\}\[breakable, size=fbox, boxrule=1pt, pad at break\*=1mm,colback=cellbackground, colframe=cellborder\]")
+    # p = re.compile(r"\\begin\{tcolorbox\}\[breakable, size=fbox, boxrule=1pt, pad at break\*=1mm,colback=cellbackground, colframe=cellborder\]")
+    # s = p.sub("", s)
+
+    # Remove useless latex instructions 
+    p = re.compile(r"\\begin\{tcolorbox\}\[[a-z0-9 =*,.]*\]")
     s = p.sub("", s)
+
 
     p = re.compile(r"\\end\{tcolorbox\}")
     s = p.sub("", s)
@@ -262,6 +267,8 @@ Ce script utilise les tags de cellule suivants :
     # Remove the path
     file_name = args.file_origin.split("/")[-1]
 
+
+
     if not args.outdir is None:
         assert os.path.isdir(args.outdir)
         # Set the output dir but removing the last character if it is a /
@@ -269,6 +276,9 @@ Ce script utilise les tags de cellule suivants :
     else:
         # The ouput_dir is the input directory (obtained by splitting the input_file name with "/", removing the last part (name of the file) and joining the directories with "/")
         output_dir = "/".join(args.file_origin.split("/")[0:-1])
+        if output_dir == "":
+            output_dir = "."
+
 
     # Check whether it is a notebook ending with _origin.ipynb
     file_name = file_name.split(".")
