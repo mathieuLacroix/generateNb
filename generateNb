@@ -21,13 +21,13 @@ def saveNotebook(ipynb, notebook):
     fichier.close()
 
 
-def cleanNotebook(ipynb, frozenMarkdown = True):
+def cleanNotebook(ipynb, studentVersion = False, frozenMarkdown = True):
     """
     Clean the notebook:
     - Remove celltoolbar key if exists
     - Remove output of each code cellule which has not the "keepOutput" tag
     - Set execution_cout to null for each code cell
-    - Set each markdown cell as frozen if frozenMarkdown is True
+    - Set each markdown cell as frozen if frozenMarkdown is True (unless it is a studentVersion and an answer cell but it is not used)
     """
     # Remove celltoolbar key if exists
     if "metadata" in ipynb and "celltoolbar" in ipynb["metadata"]:
@@ -47,7 +47,7 @@ def cleanNotebook(ipynb, frozenMarkdown = True):
 
 
         # Froze if markdown cell
-        if frozenMarkdown and cells[i]["cell_type"] == "markdown":
+        if frozenMarkdown and cells[i]["cell_type"] == "markdown" and not (studentVersion and "tags" in metadata and "answer" in metadata["tags"]):
             # These 3 metadata must be set
             metadata["editable"] = False
             metadata["deletable"] = False
@@ -88,9 +88,8 @@ def getCorrectionMarkdownInvitation():
 
 
 def createStudentVersion(ipynb, output_file):
-
+    
     ipynb2 = copy.deepcopy(ipynb)
-    cleanNotebook(ipynb2)
     cells = ipynb2["cells"]
     
     i = 0
@@ -110,6 +109,8 @@ def createStudentVersion(ipynb, output_file):
 
             elif cells[i]["cell_type"] == "markdown" and "tags" in metadata and "answer" in metadata["tags"]: 
                 cells[i]["source"] = [getStudentMarkdownInvitation()]
+                metadata["editable"] = True
+                metadata["run_control"] = {"frozen": False }
             
             i += 1
 
@@ -158,6 +159,14 @@ def createLatexVersion(ipynb, output_file_pdf, output_file_latex):
     p = re.compile(r"\\title\{.*\}")
     s = p.sub(r"\\title{" + titre + r"}\\date{}",s)
     
+    # Remove space before and after title
+    p = re.compile(r"\\maketitle")
+    s = p.sub(r"\\maketitle\n\\vspace*{-1cm}",s)
+
+    # Replace sections by sections* (for "Pour aller plus loin")
+    p = re.compile(r"\\section")
+    s = p.sub(r"\\section*",s)
+
     # Replace subsections by sections
     p = re.compile(r"\\subsection")
     s = p.sub(r"\\section",s)
@@ -197,7 +206,7 @@ def createLatexVersion(ipynb, output_file_pdf, output_file_latex):
         subprocess.run(["pdflatex remove.tex"], shell=True)
         subprocess.run(["mv remove.pdf " + output_file_pdf], shell=True)
 
-    subprocess.run(["rm remove.tex"], shell=True)
+    subprocess.run(["rm remove.*"], shell=True)
 
 
 
