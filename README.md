@@ -19,6 +19,8 @@ Les tags utilisés sont :
 
 - `removeFromStudent` : pour supprimer certaines cellules dans le notebook pour les étudiants (essentiellement pour les corrections contenant une archive et dont la réponse ne peut être écrite directement dans le notebook (création de package par exemple))
 
+- `comment` : pour ajouter des commentaires sur le notebooks (ce qu'il faut changer, etc). Les cellules taggées avec `comments` sont supprimées lors de la génération.
+
 ## Règles à suivre
 
 - Pour chaque chapitre, les images doivent être dans un répertoire `img` et les fichiers additionnels dans un répertoire `files`.

@@ -53,6 +53,13 @@ def cleanNotebook(ipynb, studentVersion = False, frozenMarkdown = True):
             metadata["deletable"] = False
             metadata["run_control"] = {"frozen": True }
 
+    # Remove cells with tag comments
+    i = 0
+    while i < len(cells):
+        metadata = cells[i]["metadata"]
+        if "tags" in metadata and "comment" in metadata["tags"]:
+            del(cells[i])
+        i += 1
 
 
 
