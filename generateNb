@@ -33,6 +33,11 @@ def cleanNotebook(ipynb, studentVersion = False, frozenMarkdown = True):
     if "metadata" in ipynb and "celltoolbar" in ipynb["metadata"]:
         del(ipynb["metadata"]["celltoolbar"])
 
+
+    # Remove jupytext in metadata if exists
+    if "metadata" in ipynb and "jupytext" in ipynb["metadata"]:
+        del(ipynb["metadata"]["jupytext"])
+
     cells = ipynb["cells"]
 
 
