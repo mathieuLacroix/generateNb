@@ -59,7 +59,8 @@ def cleanNotebook(ipynb, studentVersion = False, frozenMarkdown = True):
         metadata = cells[i]["metadata"]
         if "tags" in metadata and "comment" in metadata["tags"]:
             del(cells[i])
-        i += 1
+        else:
+            i += 1
 
 
 
