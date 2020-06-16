@@ -257,6 +257,8 @@ Ce script utilise les tags de cellule suivants :
 - "removeFromLatex" : pour supprimer certaines cellules dans le document latex (essentiellement pour les cellules contenant les imports inutiles pour le TD par exemple).
 
 - "removeFromStudent" : pour supprimer certaines cellules dans le notebook pour les étudiants (essentiellement pour les corrections contenant une archive et dont la réponse ne peut être écrite directement dans le notebook (création de package par exemple))
+
+- "comment" : pour ajouter des commentaires sur le notebooks (ce qu'il faut changer, etc). Les cellules taggées avec comment sont supprimées lors de la génération.
     """
 
 
@@ -304,6 +306,7 @@ Ce script utilise les tags de cellule suivants :
 
     # Check whether it is a notebook ending with _origin.ipynb
     file_name = file_name.split(".")
+
     assert (len(file_name) == 2 and file_name[1] == "ipynb"), "file_origin is not a notebook"
     #file_name = file_name[0].split("_")
     file_name = file_name[0]
