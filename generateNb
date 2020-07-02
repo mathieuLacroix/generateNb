@@ -203,6 +203,13 @@ def createLatexVersion(ipynb, output_file_pdf, output_file_latex):
     p = re.compile(r"\\prompt\{In\}\{incolor\}\{( |\d+)\}\{\\hspace\{4pt\}\}")
     s = p.sub("", s)
 
+    #Add graphicspath (pour pouvoir compiler un latex avec des images ailleurs que dans le répertoire courant)
+    includegraphics = r"\\graphicspath{{" + os.path.dirname(os.path.abspath(args.file_origin)) + r"/}}\n\\begin{document}"
+    p = re.compile(r"\\begin{document}")
+    s = p.sub(includegraphics,s)
+    
+
+
     # Write the new latex file
     fichier = open("remove.tex", "w")
     fichier.write(s)
